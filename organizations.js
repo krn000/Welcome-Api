@@ -1,64 +1,119 @@
 'use strict'
-let db = global.db
-let mapper = require('../mappers/organization')
-var uuid = require('uuid')
+const db = require('../models')
 
-let createOrg = data => {
-    return new db.organization(data)
-        .save()
+const set = async (model, entity, context) => {
+    if (model.name) {
+        entity.name = model.name
+    }
+
+    if (model.shortName) {
+        entity.shortName = model.shortName
+    }
+
+    if (model.logo) {
+        entity.logo = {
+            url: model.logo.url,
+            thumbnail: model.logo.thumbnail
+        }
+    }
+
+    if (model.config) {
+        entity.config = model.config
+    }
+    if (model.status) {
+        entity.status = model.status
+    }
+
+    if (!model.notifications) {
+        return
+    }
+
+    entity.notifications = entity.notifications || {
+        enabled: true,
+        subscriptions: {}
+    }
+
+    if (model.notifications.enabled !== undefined) {
+        entity.notifications.enabled = model.notifications.enabled
+    }
+
+    if (model.notifications.subscriptions) {
+        const keys = Object.keys(model.notifications.subscriptions)
+        for (let index = 0; index < keys.length; index++) {
+            entity.notifications.subscriptions[keys[index]] = model.notifications.subscriptions[keys[index]]
+        }
+    }
 }
 
-exports.create = (req, res) => {
-    let model = req.body
-    if (!model.code || !model.name) {
-        return res.failure('organization code and name is needed')
-    }
-
-    var data = {
-        code: model.code,
-        name: model.name,
-        externalUrl: model.externalUrl,
-        activationKey: uuid.v()
-    }
-    createOrg(data)
-        .then(org => {
-            res.data(mapper.toModel(org))
-        })
-        .catch(err => {
-            res.failure(err)
-        })
+exports.create = async (model, context) => {
+    const organization = new db.organization({
+        code: model.code.toLowerCase(),
+        status: 'active',
+        tenant: context.tenant
+    })
+    await set(model, organization, context)
+    await organization.save()
+    return organization
 }
 
-exports.update = (req, res) => {
-    let model = req.body
-    if (!model.code || !model.name) {
-        throw new Error('organization code and name is needed')
+exports.update = async (id, model, context) => {
+    if (id === 'me' || id === 'my') {
+        id = context.organization.id
     }
 
-    var data = {
-        code: model.code,
-        name: model.name
-    }
+    const entity = await db.organization.findById(id)
 
-    var query = {}
+    await set(model, entity, context)
 
-    query._id = req.params.id
-
-    db.organization.findOneAndUpdate(query, data, { new: true })
-        .then(org => {
-            res.data(mapper.toModel(org))
-        })
-        .catch(err => {
-            res.failure(err)
-        })
+    return entity.save()
 }
 
-exports.get = (req, res) => {
-    db.organization.find()
-        .then(organization => {
-            return res.page(mapper.toSearchModel(organization))
-        })
-        .catch(err => {
-            res.failure(err)
-        })
+exports.get = async (query, context) => {
+    context.logger.start('services/organizations:get')
+    let entity
+    const where = {
+        tenant: context.tenant
+    }
+    if (typeof query === 'string') {
+        if (query === 'me' || query === 'my') {
+            return context.organization
+        }
+        if (query.isObjectId()) {
+            return db.organization.findById(query)
+        }
+        where.code = query
+        return db.organization.findOne(where)
+    } else if (query.id) {
+        if (query.id === 'me' || query.id === 'my') {
+            return context.organization
+        }
+        return db.organization.findById(query.id)
+    } else if (query.code) {
+        where.code = query.code
+        return db.organization.findOne(where)
+    }
+
+    return null
+}
+
+exports.getByCode = async (code, context) => {
+    return db.organization.findOne({
+        code: code.toLowerCase(),
+        tenant: context.tenant
+    })
+}
+
+exports.search = async (query, page, context) => {
+    const where = {
+        tenant: context.tenant
+    }
+    if (!page || !page.limit) {
+        return {
+            items: await db.organization.find(where)
+        }
+    }
+    return {
+        items: await db.organization.find(where).limit(page.limit).skip(page.skip),
+        count: await db.organization.count(where)
+    }
 }

@@ -2,7 +2,7 @@
 const pager = require('../helpers/paging')
 
 const inflate = (flattened) => {
-    let model = {}
+    const model = {}
 
     Object.getOwnPropertyNames(flattened).forEach(key => {
         const value = flattened[key]
@@ -11,7 +11,7 @@ const inflate = (flattened) => {
             return
         }
 
-        let parts = key.split('-')
+        const parts = key.split('-')
         let index = 0
         let obj = model
 
@@ -31,10 +31,10 @@ const inflate = (flattened) => {
 }
 
 module.exports = (serviceName, mapperName) => {
-    let name = serviceName
+    const name = serviceName
     mapperName = mapperName || name
+    const entityService = require('../services')[name]
     const entityMapper = require('../mappers')[mapperName]
-    const entityService = require(`../services/${name}`)
 
     if (!entityService) {
         throw new Error(`services.${name} does not exist`)
@@ -47,26 +47,26 @@ module.exports = (serviceName, mapperName) => {
     return {
         get: async (req) => {
             if (!entityService.get) {
-                throw new Error(`METHOD_NOT_SUPPORTED`)
+                throw new Error('METHOD_NOT_SUPPORTED')
             }
-            let entity = await entityService.get(req.params.id, req.context)
+            const entity = await entityService.get(req.params.id, req.context)
 
             if (!entity) {
-                throw new Error(`RESOURCE_NOT_FOUND`)
+                throw new Error('RESOURCE_NOT_FOUND')
             }
             return entityMapper.toModel(entity, req.context)
         },
         search: async (req) => {
             if (!entityService.search) {
-                throw new Error(`METHOD_NOT_SUPPORTED`)
+                throw new Error('METHOD_NOT_SUPPORTED')
             }
-            let page = pager.extract(req)
+            const page = pager.extract(req)
 
-            let query = inflate(req.query)
+            const query = inflate(req.query)
             req.context.logger.silly(query)
             const entities = await entityService.search(query, page, req.context)
 
-            let pagedItems = {
+            const pagedItems = {
                 items: entities.items.map(i => {
                     return (entityMapper.toSummary || entityMapper.toModel)(i, req.context)
                 }),
@@ -83,16 +83,19 @@ module.exports = (serviceName, mapperName) => {
         },
         update: async (req) => {
             if (!entityService.update) {
-                throw new Error(`METHOD_NOT_SUPPORTED`)
+                throw new Error('METHOD_NOT_SUPPORTED')
             }
+            req.context.logger.silly(JSON.stringify(req.body))
             const entity = await entityService.update(req.params.id, req.body, req.context)
             return entityMapper.toModel(entity, req.context)
         },
 
         create: async (req) => {
             if (!entityService.create) {
-                throw new Error(`METHOD_NOT_SUPPORTED`)
+                throw new Error('METHOD_NOT_SUPPORTED')
             }
+
+            req.context.logger.silly(JSON.stringify(req.body))
             const entity = await entityService.create(req.body, req.context)
             return entityMapper.toModel(entity, req.context)
         },
@@ -100,7 +103,7 @@ module.exports = (serviceName, mapperName) => {
             let added = 0
             let updated = 0
             for (const item of req.body.items) {
-                let entity = await entityService.get(item, req.context)
+                const entity = await entityService.get(item, req.context)
                 if (entity) {
                     await entityService.update(entity.id, item, req.context)
                     updated = updated + 1
@@ -110,13 +113,13 @@ module.exports = (serviceName, mapperName) => {
                 }
             }
 
-            let message = `added: ${added}, updated: ${updated} item(s)`
+            const message = `added: ${added}, updated: ${updated} item(s)`
             req.context.logger.debug(message)
             return message
         },
         delete: async (req) => {
             if (!entityService.remove) {
-                throw new Error(`METHOD_NOT_SUPPORTED`)
+                throw new Error('METHOD_NOT_SUPPORTED')
             }
             let count = await entityService.remove(req.params.id, req.context)
 

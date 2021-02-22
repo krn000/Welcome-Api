@@ -1,23 +1,31 @@
-'use strict'
-const summaryService = require('../services/summaries')
-const mapper = require('../mappers/summary')
+const messages = require('../services/messages')
 
-exports.search = async (req) => {
-    let log = req.context.logger.start('api/summaries:search')
+exports.get = async (id, context) => {
+    const log = context.logger.start('get')
 
-    let byMonth = !!(req.query.byMonth === 'true' || req.query.byMonth === true)
-    let summaries = []
+    const summary = {}
 
-    if (byMonth) {
-        let monthSummaries = await summaryService.getMonthWiseSummary(req.query.fromDate, req.query.tillDate, req.query.agentId, req.context)
-        let yearSummaries = await summaryService.getYearWiseSummary(req.query.fromDate, req.query.tillDate, req.query.agentId, req.context)
-        summaries.push(...monthSummaries, ...yearSummaries)
-    } else {
-        let daySummaries = await summaryService.getDayWiseSummary(req.query.fromDate, req.query.tillDate, req.query.agentId, req.context)
-        let monthSummaries = await summaryService.getMonthWiseSummary(req.query.fromDate, req.query.tillDate, req.query.agentId, req.context)
-        summaries.push(...monthSummaries, ...daySummaries)
+    const messagesQuery = {
+        to: id,
+        isHidden: false
     }
 
-    log.end()
-    return mapper.toSearchModel(summaries)
+    const unreadQuery = {
+        to: id,
+        isHidden: false,
+        viewedOn: { $exists: true }
+    }
+
+    const actionQuery = {
+        to: id,
+        isHidden: false,
+        'meta.actions.1': { $exists: true }
+    }
+
+    summary.messages = await messages.limit(10, messagesQuery, context)
+    summary.total = await messages.count(messagesQuery, context)
+    summary.unread = await messages.count(unreadQuery, context)
+    summary.actions = await messages.count(actionQuery, context)
+
+    return summary
 }

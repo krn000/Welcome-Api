@@ -1,0 +1,12 @@
+/node_modules
+npm-debug.log
+/public/bower_components
+/public/public/bower_components
+/.idea
+.jenkins
+/logs/*
+/temp/*
+!/logs/*.txt
+/data/**/*.json
+config/*
+!/config/default.json
