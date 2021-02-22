@@ -1,6 +1,7 @@
-const mongoose = require('mongoose')
-
+'use strict'
+var mongoose = require('mongoose')
 module.exports = {
+    tackingId: String,
     role: {
         id: String,
         key: String,
@@ -13,7 +14,6 @@ module.exports = {
     phone: String,
     code: String,
     profile: {
-        title: String,
         firstName: String,
         lastName: String,
         gender: String,
@@ -23,12 +23,41 @@ module.exports = {
             thumbnail: String
         }
     },
-
+    address: {
+        line1: String,
+        line2: String,
+        district: String,
+        city: String,
+        state: String,
+        pinCode: String,
+        country: String
+    },
     config: Object,
-
     status: String,
+    chat: {
+        id: Number,
+        key: String,
+        statusMessage: String
+    },
+    devices: [{
+        id: String,
+        name: String,
+        status: {
+            type: String,
+            default: 'active',
+            enum: ['active', 'inactive']
+        }
+    }],
+    notifications: {
+        enabled: { type: Boolean, default: true },
+        snooze: Date,
+        refusals: [{
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'template'
+        }]
+    },
+
     lastSeen: Date,
-    meta: Object,
     organization: { type: mongoose.Schema.Types.ObjectId, ref: 'organization' },
     tenant: { type: mongoose.Schema.Types.ObjectId, ref: 'tenant' }
 }

@@ -1,32 +1,18 @@
 'use strict'
 const fs = require('fs')
-const mongoose = require('mongoose')
-const changeCase = require('change-case')
-const findOrCreate = require('findorcreate-promise')
+const join = require('path').join
+const camelCase = require('camel-case')
+const services = {}
 
-let init = function () {
-    mongoose.plugin(findOrCreate)
-
+const init = function () {
     fs.readdirSync(__dirname).forEach(function (file) {
         if (file.indexOf('.js') && file.indexOf('index.js') < 0) {
-            let name = file.split('.')[0]
-            let entity = require('./' + file)
-            entity.timeStamp = {
-                type: Date,
-                default: Date.now
-            }
-            let schema = mongoose.Schema(entity)
-
-            schema.pre('save', function (next) {
-                this.timeStamp = Date.now()
-                next()
-            })
-
-            mongoose.model(changeCase.camelCase(name), schema)
+            var name = camelCase(file.substring(0, file.indexOf('.js')))
+            services[name] = require('./' + file)
         }
     })
 }
 
 init()
 
-module.exports = mongoose.models
+module.exports = services
